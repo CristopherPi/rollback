@@ -2,31 +2,21 @@ pipeline {
   agent any
 
   stages {
+    // 1) Preguntar si hacemos rollback y capturar el tag a desplegar
     stage('Seleccionar acción') {
       steps {
         script {
-          // 1) Preguntamos si queremos rollback
           def doRollback = input(
             message: '¿Deseas hacer rollback?',
             parameters: [
-              booleanParam(
-                name: 'ROLLBACK',
-                defaultValue: false,
-                description: 'Marca para volver a un build anterior'
-              )
+              booleanParam(name: 'ROLLBACK', defaultValue: false, description: 'Marca para rollback')
             ]
           )
-
-          // 2) Si es rollback, pedimos el número de build; si no, usamos el BUILD_NUMBER actual
           if (doRollback) {
             env.TAG_TO_DEPLOY = input(
               message: '¿Qué número de build quieres desplegar?',
               parameters: [
-                string(
-                  name: 'BUILD_NUMBER',
-                  defaultValue: '',
-                  description: 'Número de build a desplegar'
-                )
+                string(name: 'BUILD_NUMBER', defaultValue: '', description: 'Número de build existente')
               ]
             )
           } else {
@@ -36,34 +26,34 @@ pipeline {
       }
     }
 
-    stage('Build & Push') {
-      // Sólo cuando no hay rollback
+    // 2) Sólo construir si es un despliegue nuevo
+    stage('Build') {
       when {
         expression { env.TAG_TO_DEPLOY == env.BUILD_NUMBER }
       }
       steps {
-        echo "Construyendo y empujando imagen con tag ${env.TAG_TO_DEPLOY}"
-        sh "docker build -t myapp/nginxapp:${env.TAG_TO_DEPLOY} ."
-        // sh "docker push myrepo/nginxapp:${env.TAG_TO_DEPLOY}"
+        echo "Building image myrepo/nginxapp:${env.TAG_TO_DEPLOY}"
+        sh "docker build -t myrepo/nginxapp:${env.TAG_TO_DEPLOY} ."
       }
     }
 
-
-
-
-    stage('Check image tag') {
-        steps {
-          script {
-        echo "Verificando que la imagen con tag ${env.TAG_TO_DEPLOY} existe"
-            def imageExists = sh(script: "docker images -q myapp/nginxapp:${env.TAG_TO_DEPLOY}", returnStatus: true) == 0
-            if (!imageExists) {
-              error "La imagen con tag ${env.TAG_TO_DEPLOY} no existe. Abortando."
-            } else {
-              echo "La imagen con tag ${env.TAG_TO_DEPLOY} existe."
-            }
-          }
-        }
+    // 3) Push SIEMPRE, tanto para rollback como para despliegue normal
+    stage('Push') {
+      steps {
+        echo "Pushing image myrepo/nginxapp:${env.TAG_TO_DEPLOY}"
+        //sh "docker push myrepo/nginxapp:${env.TAG_TO_DEPLOY}"
+      }
     }
+
+    // 4) Deploy: pull + run con el tag seleccionado
+    // stage('Deploy') {
+    //   steps {
+    //     echo "Desplegando myrepo/nginxapp:${env.TAG_TO_DEPLOY}"
+    //     sh "docker stop nginxapp || true"
+    //     sh "docker rm nginxapp   || true"
+    //     sh "docker pull myrepo/nginxapp:${env.TAG_TO_DEPLOY}"
+    //     sh "docker run -d --name nginxapp -p 8080:80 myrepo/nginxapp:${env.TAG_TO_DEPLOY}"
+    //   }
+    // }
   }
 }
-
