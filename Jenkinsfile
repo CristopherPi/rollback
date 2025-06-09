@@ -43,21 +43,27 @@ pipeline {
       }
       steps {
         echo "Construyendo y empujando imagen con tag ${env.TAG_TO_DEPLOY}"
-        sh "docker build -t myrepo/nginxapp:${env.TAG_TO_DEPLOY} ."
+        sh "docker build -t myapp/nginxapp:${env.TAG_TO_DEPLOY} ."
         // sh "docker push myrepo/nginxapp:${env.TAG_TO_DEPLOY}"
       }
     }
 
-    // stage('Deploy') {
-    //   steps {
-    //     echo "Desplegando la imagen myrepo/nginxapp:${env.TAG_TO_DEPLOY}"
-    //     // Para simplificar, siempre hacemos pull+run, tanto en deploy nuevo como en rollback
-    //     sh "docker stop nginxapp || true"
-    //     sh "docker rm  nginxapp || true"
-    //     sh "docker pull myrepo/nginxapp:${env.TAG_TO_DEPLOY}"
-    //     sh "docker run -d --name nginxapp -p 8080:80 myrepo/nginxapp:${env.TAG_TO_DEPLOY}"
-    //   }
-    // }
+
+
+
+    stage('Check image tag') {
+        steps {
+          script {
+        echo "Verificando que la imagen con tag ${env.TAG_TO_DEPLOY} existe"
+            def imageExists = sh(script: "docker images -q myapp/nginxapp:${env.TAG_TO_DEPLOY}", returnStatus: true) == 0
+            if (!imageExists) {
+              error "La imagen con tag ${env.TAG_TO_DEPLOY} no existe. Abortando."
+            } else {
+              echo "La imagen con tag ${env.TAG_TO_DEPLOY} existe."
+            }
+          }
+        }
+    }
   }
 }
 
