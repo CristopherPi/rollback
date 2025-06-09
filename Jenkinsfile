@@ -15,7 +15,7 @@ pipeline {
         sh """
           docker run \
             --name nginxapp-${BUILD_NUMBER} \
-            -d -p 8080:80 \
+            -d -p 5000:5000 \
             nginxapp:${BUILD_NUMBER}
         """
       }
@@ -36,13 +36,5 @@ pipeline {
     }
   }
 
-  post {
-    always {
-      // Opcional: elimina el contenedor y la imagen (o limpia workspace)
-      sh """
-        docker rm -f nginxapp-${BUILD_NUMBER} || true
-        docker rmi nginxapp:${BUILD_NUMBER} || true
-      """
-    }
-  }
+
 }
